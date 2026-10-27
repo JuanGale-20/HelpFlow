@@ -1,28 +1,62 @@
-﻿# HelpFlow - Sistema Integral de GestiÃ³n de Soporte TI
+﻿# HelpFlow - Sistema Integral de Gestión de Soporte TI
 
-[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20Ports%20%26%20Adapters-blue.svg)]()
-[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016-blue.svg)](https://www.postgresql.org/)
+[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
+[![Spring Boot 4.1.2](https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Arquitectura Hexagonal](https://img.shields.io/badge/Arquitectura-Hexagonal%20(Ports%20%26%20Adapters)-blue.svg)]()
+[![Base de Datos](https://img.shields.io/badge/Database-PostgreSQL%2016-blue.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose%20Ready-2496ED.svg)](https://www.docker.com/)
 
-**HelpFlow** es una plataforma corporativa para el registro, priorizaciÃ³n, asignaciÃ³n determinista, escalamiento por SLA y cierre de incidencias tecnolÃ³gicas en entornos distribuidos multi-sede.
+**HelpFlow** es una plataforma empresarial para la gestión, priorización, asignación determinista, escalamiento automático por SLA y resolución de tickets de soporte tecnológico en organizaciones multi-sede.
 
-El sistema se compone de dos microservicios desacoplados:
-1. **`support-ticket-service` (Puerto 8080):** Servicio central construido bajo arquitectura hexagonal pura, con persistencia JPA avanzada en PostgreSQL, migraciones Flyway, seguridad stateless mediante JWT, auditorÃ­a transaccional, observabilidad con Micrometer/Prometheus y manejo estandarizado de errores RFC 7807 (`ProblemDetail`).
-2. **`technician-dispatch-service` (Puerto 8081):** Microservicio externo simulado y determinista que evalÃºa la categorÃ­a, prioridad y ticket para sugerir tÃ©cnicos y disponibilidad estimada.
+El sistema está dividido en **dos microservicios desacoplados**:
+* **`support-ticket-service` (Puerto 8080):** Servicio central con arquitectura hexagonal pura, persistencia JPA en PostgreSQL, migraciones automáticas con Flyway, autenticación stateless con JWT, observabilidad con Micrometer/Prometheus y respuestas de error estandarizadas RFC 7807 (`ProblemDetail`).
+* **`technician-dispatch-service` (Puerto 8081):** Microservicio determinista que evalúa la categoría, prioridad e ID del ticket para predecir el técnico óptimo y su tiempo estimado de respuesta.
 
 ---
 
-## 1. Diagramas del Sistema
+## Inicio Rápido (En 3 Pasos)
 
-### 1.1. Arquitectura Hexagonal (`support-ticket-service`)
+### 1. Iniciar los Servicios con Docker
+En la raíz del proyecto, ejecuta:
+```bash
+docker compose up --build -d
+```
+> Esto descarga, compila y levanta automáticamente la base de datos PostgreSQL y los dos microservicios con monitoreo de salud activo (`healthy`).
+
+### 2. Verificar la Salud del Sistema
+Abre tu navegador o ejecuta en terminal:
+* **Servicio Central:** [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) `{"status":"UP"}`
+* **Servicio de Despacho:** [http://localhost:8081/actuator/health](http://localhost:8081/actuator/health) `{"status":"UP"}`
+
+### 3. Explorar la API
+* **Swagger UI Interactivo:** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+* **Colección Postman:** Importa el archivo [`HelpFlow.postman_collection.json`](file:///C:/Users/juang/OneDrive/Documentos/riwi-proyects/HelpFlow/HelpFlow.postman_collection.json) en la raíz del proyecto.
+
+---
+
+## Enlaces Clave del Entorno
+
+| Servicio | Endpoint / Herramienta | URL |
+| :--- | :--- | :--- |
+| **Central (8080)** | Swagger UI | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) |
+| **Central (8080)** | OpenAPI JSON | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) |
+| **Central (8080)** | Health Check | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) |
+| **Central (8080)** | Métricas Prometheus | [http://localhost:8080/actuator/prometheus](http://localhost:8080/actuator/prometheus) |
+| **Despacho (8081)** | Health Check | [http://localhost:8081/actuator/health](http://localhost:8081/actuator/health) |
+| **Despacho (8081)** | Métricas Prometheus | [http://localhost:8081/actuator/prometheus](http://localhost:8081/actuator/prometheus) |
+| **PostgreSQL** | Conexión JDBC | `localhost:5432` / BD: `helpflow_tickets` |
+
+---
+
+## Diagramas de Arquitectura y Flujos
+
+### 1. Arquitectura Hexagonal (`support-ticket-service`)
 
 ```mermaid
 flowchart TD
     subgraph AdaptadoresEntrada["Adaptadores de Entrada (Inbound Adapters)"]
-        REST["REST Controllers\n(AuthController, TicketController, AdminSlaController)"]
-        CRON["Task Scheduler\n(TicketEscalationScheduler @Scheduled)"]
+        REST["REST Controllers<br/>(AuthController, TicketController, AdminSlaController)"]
+        CRON["Scheduler de Escalamiento<br/>(@Scheduled TicketEscalationScheduler)"]
     end
 
     subgraph PuertosEntrada["Puertos de Entrada (Input Ports / Use Cases)"]
@@ -31,13 +65,13 @@ flowchart TD
         ManageUC["ManageTicketUseCase"]
         EscalateUC["EscalateTicketsUseCase"]
         QueryUC["QueryTicketsUseCase"]
-        AuthUC["RegisterUserUseCase\nManageSlaUseCase"]
+        AuthUC["RegisterUserUseCase / ManageSlaUseCase"]
     end
 
-    subgraph DominioPuro["NÃºcleo de Dominio (Domain Core - Sin dependencias)"]
-        Entities["Entidades & Agregados\n(Ticket, User, Technician, Assignment)"]
-        VO["Value Objects\n(TicketId, UserId, TechnicianId, SlaDeadline)"]
-        Policies["PolÃ­ticas del Dominio\n(AssignmentPolicy, TicketTransitionPolicy, SlaPolicy)"]
+    subgraph DominioPuro["Núcleo de Dominio (Domain Core - Puro, sin Spring)"]
+        Entities["Entidades & Agregados<br/>(Ticket, User, Technician, Assignment)"]
+        VO["Value Objects<br/>(TicketId, UserId, TechnicianId, SlaDeadline)"]
+        Policies["Políticas de Negocio<br/>(AssignmentPolicy, TicketTransitionPolicy, SlaPolicy)"]
     end
 
     subgraph PuertosSalida["Puertos de Salida (Output Ports)"]
@@ -52,9 +86,9 @@ flowchart TD
     end
 
     subgraph AdaptadoresSalida["Adaptadores de Salida (Outbound Adapters)"]
-        JPA["Persistencia JPA & PostgreSQL\n(Spring Data + MapStruct + Flyway)"]
-        RestClient["HTTP Client\n(TechnicianDispatchRestClientAdapter)"]
-        Security["Seguridad\n(BCryptPasswordEncoderAdapter)"]
+        JPA["Persistencia JPA en PostgreSQL<br/>(Spring Data JPA + EntityGraphs + Flyway)"]
+        RestClient["Cliente HTTP RestClient<br/>(TechnicianDispatchRestClientAdapter)"]
+        Security["Seguridad Criptográfica<br/>(BCryptPasswordEncoderAdapter)"]
     end
 
     REST --> PuertosEntrada
@@ -73,186 +107,185 @@ flowchart TD
 
 ---
 
-### 1.2. RelaciÃ³n e InteracciÃ³n entre Microservicios
+### 2. Flujo de Creación y Auto-Despacho de Tickets
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Usuario as Usuario Solicitante
-    participant TicketService as support-ticket-service (8080)
-    participant DispatchService as technician-dispatch-service (8081)
+    participant Core as support-ticket-service (8080)
+    participant Dispatch as technician-dispatch-service (8081)
     participant DB as PostgreSQL (5432)
 
-    Usuario->>TicketService: POST /tickets (Bearer Token)
-    Note over TicketService: Valida usuario ACTIVO y calcula SLA
-    TicketService->>DB: INSERT into tickets (Estado: ABIERTO)
-    TicketService->>DB: INSERT into assignment_history (Ticket creado)
+    Usuario->>Core: POST /tickets (Bearer JWT)
+    Note over Core: Valida usuario ACTIVO y calcula SLA según prioridad
+    Core->>DB: INSERT ticket (Estado: ABIERTO)
+    Core->>DB: INSERT assignment_history (Ticket creado)
 
-    TicketService->>DispatchService: POST /technician-dispatch (ticketId, categoria, prioridad)
-    alt Dispatch responde exitosamente
-        DispatchService-->>TicketService: 200 OK (tecnicoId, disponibilidad, horas)
-        Note over TicketService: Valida reglas de asignaciÃ³n (especialidad y carga)
-    else Dispatch falla o tÃ©cnico no elegible
-        Note over TicketService: Fallback: Reglas Internas (misma sede y menor carga)
+    Core->>Dispatch: POST /technician-dispatch (ticketId, categoría, prioridad)
+    alt Dispatch responde con éxito
+        Dispatch-->>Core: 200 OK (tecnicoId, disponibilidad, horas)
+        Note over Core: Verifica reglas: especialidad y carga activa < 5
+    else Falla de red / timeout / técnico saturado
+        Note over Core: Fallback: busca técnico local de misma sede con menor carga
     end
 
-    alt TÃ©cnico encontrado
-        TicketService->>DB: UPDATE tickets SET status = 'ASIGNADO', technician_id
-        TicketService->>DB: INSERT into assignments
-        TicketService->>DB: INSERT into assignment_history
-    else Sin tÃ©cnicos elegibles
-        Note over TicketService: Ticket permanece en estado ABIERTO
+    alt Técnico encontrado y elegible
+        Core->>DB: UPDATE tickets SET status = 'ASIGNADO', technician_id
+        Core->>DB: INSERT assignments & assignment_history
+    else Sin técnicos disponibles
+        Note over Core: Permanece en ABIERTO para asignación posterior
     end
 
-    TicketService-->>Usuario: 201 Created (TicketResponse)
+    Core-->>Usuario: 201 Created (TicketResponse)
 ```
 
 ---
 
-### 1.3. Ciclo de Vida y Transiciones de Estado del Ticket
+### 3. Ciclo de Vida y Estados del Ticket
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ABIERTO: Registro de Ticket
-    ABIERTO --> ASIGNADO: Auto-asignaciÃ³n / AsignaciÃ³n manual
-    ABIERTO --> CANCELADO: Cancelado por el Usuario (con observaciÃ³n)
-    ASIGNADO --> EN_PROGRESO: TÃ©cnico inicia atenciÃ³n (registra firstResponseAt)
-    ASIGNADO --> CANCELADO: Cancelado por el Usuario (con observaciÃ³n)
-    ASIGNADO --> ASIGNADO: ReasignaciÃ³n por Admin
-    EN_PROGRESO --> ASIGNADO: ReasignaciÃ³n por Admin
-    EN_PROGRESO --> RESUELTO: TÃ©cnico soluciona el ticket (con observaciÃ³n)
-    RESUELTO --> EN_PROGRESO: Reapertura por revisiÃ³n
-    RESUELTO --> CERRADO: Cierre definitivo administrativo
+    [*] --> ABIERTO: Creación del Ticket
+    ABIERTO --> ASIGNADO: Auto-asignación / Asignación Admin
+    ABIERTO --> CANCELADO: Cancelado por el Usuario
+    ASIGNADO --> EN_PROGRESO: Técnico inicia atención (firstResponseAt)
+    ASIGNADO --> CANCELADO: Cancelado por el Usuario
+    ASIGNADO --> ASIGNADO: Reasignación por Admin
+    EN_PROGRESO --> ASIGNADO: Reasignación por Admin
+    EN_PROGRESO --> RESUELTO: Técnico soluciona el ticket (observación)
+    RESUELTO --> EN_PROGRESO: Reapertura por revisión
+    RESUELTO --> CERRADO: Cierre definitivo (Admin)
     CANCELADO --> [*]
     CERRADO --> [*]
 ```
 
 ---
 
-## 2. Roles y Control de Acceso (Matriz RBAC)
+## Matriz de Roles y Permisos (RBAC)
 
-| Funcionalidad | `ROLE_USUARIO` | `ROLE_TECNICO` | `ROLE_ADMIN` |
+| Acción / Funcionalidad | `ROLE_USUARIO` | `ROLE_TECNICO` | `ROLE_ADMIN` |
 | :--- | :---: | :---: | :---: |
-| Crear tickets |  SÃ­ | âŒ No |  SÃ­ |
-| Consultar tickets |  Solo propios |  Solo asignados |  Todos |
-| Cancelar ticket propio |  SÃ­ (con motivo) | âŒ No |  SÃ­ |
-| Avanzar a `EN_PROGRESO` | âŒ No |  Solo asignados |  SÃ­ |
-| Resolver ticket | âŒ No |  Solo asignados |  SÃ­ |
-| Reasignar tÃ©cnico | âŒ No | âŒ No |  SÃ­ |
-| Configurar horas de SLA | âŒ No | âŒ No |  SÃ­ |
+| **Crear nuevo ticket** | Sí | No | Sí |
+| **Consultar tickets** | Solo los propios | Solo los asignados | Todos los tickets |
+| **Cancelar ticket** | Sí (con observación) | No | Sí |
+| **Iniciar atención (`EN_PROGRESO`)** | No | Solo los asignados | Sí |
+| **Resolver ticket (`RESUELTO`)** | No | Solo los asignados | Sí |
+| **Reasignar técnico manualmente** | No | No | Sí |
+| **Consultar y Modificar horas SLA** | No | No | Sí |
+| **Registrar nuevos usuarios / técnicos**| No | No | Sí |
 
 ---
 
-## 3. Credenciales de Prueba Pre-cargadas (Flyway V3)
+## Credenciales de Prueba Pre-cargadas
 
-Todos los usuarios tienen la contraseÃ±a: **`admin123`**
+Todos los usuarios creados en el semillero inicial ([V3__datos_iniciales.sql](file:///C:/Users/juang/OneDrive/Documentos/riwi-proyects/HelpFlow/support-ticket-service/src/main/resources/db/migration/V3__datos_iniciales.sql)) comparten la misma contraseña:
+> Contraseña general: **`admin123`**
 
-| Rol | Correo ElectrÃ³nico | Especialidad / Sede | Carga MÃ¡x. |
-| :--- | :--- | :--- | :---: |
-| **Administrador** | `admin@helpflow.com` | DirecciÃ³n TI / Sede Central | N/A |
-| **TÃ©cnico (Hardware)** | `tec01@helpflow.com` (`TEC-001`) | HARDWARE / Sede Central | 5 |
-| **TÃ©cnico (Hardware)** | `tec02@helpflow.com` (`TEC-002`) | HARDWARE / Sede Norte | 5 |
-| **TÃ©cnico (Software)** | `tec05@helpflow.com` (`TEC-005`) | SOFTWARE / Sede Central | 5 |
-| **TÃ©cnico (Red)** | `tec09@helpflow.com` (`TEC-009`) | RED / Sede Central | 5 |
-| **TÃ©cnico (Accesos)** | `tec13@helpflow.com` (`TEC-013`) | ACCESOS / Sede Central | 5 |
-| **TÃ©cnico (General)** | `tec17@helpflow.com` (`TEC-017`) | OTRO / Sede Central | 5 |
+| Rol | Correo Electrónico | Código / Especialidad | Sede | Capacidad |
+| :--- | :--- | :--- | :--- | :---: |
+| **Administrador** | `admin@helpflow.com` | `DOC-ADMIN-01` | Sede Central | N/A |
+| **Técnico Hardware** | `tec01@helpflow.com` | `TEC-001` (HARDWARE) | Sede Central | 5 tickets |
+| **Técnico Hardware** | `tec02@helpflow.com` | `TEC-002` (HARDWARE) | Sede Norte | 5 tickets |
+| **Técnico Software** | `tec05@helpflow.com` | `TEC-005` (SOFTWARE) | Sede Central | 5 tickets |
+| **Técnico Redes** | `tec09@helpflow.com` | `TEC-009` (RED) | Sede Central | 5 tickets |
+| **Técnico Accesos** | `tec13@helpflow.com` | `TEC-013` (ACCESOS) | Sede Central | 5 tickets |
+| **Técnico General** | `tec17@helpflow.com` | `TEC-017` (OTRO) | Sede Central | 5 tickets |
 
-*(Nota: Existen en total 20 tÃ©cnicos registrados de `TEC-001` a `TEC-020` distribuidos entre las 5 especialidades y 4 sedes).*
-
----
-
-## 4. Endpoints Principales de la API
-
-### AutenticaciÃ³n (`/auth`)
-* `POST /auth/register`: Registro de nuevos usuarios y tÃ©cnicos con documento y correo Ãºnicos.
-* `POST /auth/login`: AutenticaciÃ³n con credenciales que retorna el token JWT Bearer.
-
-### Tickets de Soporte (`/tickets`)
-* `POST /tickets`: CreaciÃ³n de ticket con auto-asignaciÃ³n inmediata.
-* `GET /tickets`: Listado de tickets filtrado segÃºn el rol del actor autenticado.
-* `GET /tickets/{id}`: Detalle del ticket con validaciÃ³n de propiedad.
-* `GET /tickets/{id}/history`: Historial completo de cambios y observaciones.
-* `PATCH /tickets/{id}/status`: TransiciÃ³n de estado (`status` y `observation`).
-* `POST /tickets/{id}/assign`: ReasignaciÃ³n manual por administrador.
-
-### AdministraciÃ³n de SLA (`/admin/sla`)
-* `GET /admin/sla`: Consulta de las horas lÃ­mites de SLA activas por prioridad.
-* `PUT /admin/sla`: ModificaciÃ³n de horas lÃ­mites de SLA por el administrador.
-
-### Observabilidad y Monitoreo (`/actuator`)
-* `GET /actuator/health`: Estado de salud de la aplicaciÃ³n y la conexiÃ³n a base de datos.
-* `GET /actuator/metrics`: Listado de mÃ©tricas disponibles.
-* `GET /actuator/metrics/helpflow.tickets.created`: Contador de tickets por categorÃ­a y prioridad.
-* `GET /actuator/metrics/helpflow.tickets.overdue`: Gauge en tiempo real de tickets con SLA vencido.
-* `GET /actuator/metrics/helpflow.tickets.first_response_time`: Tiempo medio de primera respuesta.
-* `GET /actuator/metrics/helpflow.tickets.resolution_time`: Tiempo medio de resoluciÃ³n.
-* `GET /actuator/prometheus`: Exportador para scraping de Prometheus.
+*(Hay un total de 20 técnicos registrados de `TEC-001` a `TEC-020` distribuidos uniformemente entre sedes Central, Norte, Sur y Occidente).*
 
 ---
 
-## 5. Instrucciones de EjecuciÃ³n
+## Demostración Rápida de la API
 
-### OpciÃ³n A: Despliegue Completo con Docker Compose (Recomendado)
-
-En la raÃ­z del proyecto, ejecuta un Ãºnico comando:
-
+### 1. Iniciar Sesión (Login)
 ```bash
-docker compose up --build -d
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@helpflow.com","password":"admin123"}'
+```
+> **Respuesta:** Devuelve el JSON con el `token` JWT Bearer y datos del usuario autenticado.
+
+---
+
+### 2. Crear un Ticket con Auto-Asignación
+```bash
+curl -X POST http://localhost:8080/tickets \
+  -H "Authorization: Bearer <TU_TOKEN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Falla de conectividad en switch",
+    "description": "Switch de sala de juntas sin enlace de red",
+    "category": "RED",
+    "priority": "ALTA",
+    "site": "Sede Central",
+    "area": "Infraestructura"
+  }'
+```
+> **Resultado:** El ticket se crea inmediatamente en estado `ASIGNADO` y vinculado al técnico que determinó el microservicio de despacho.
+
+---
+
+### 3. Actualizar el Estado del Ticket
+```bash
+curl -X PATCH http://localhost:8080/tickets/1/status \
+  -H "Authorization: Bearer <TU_TOKEN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "EN_PROGRESO",
+    "observation": "Inicio de diagnóstico de cables y puertos del switch"
+  }'
 ```
 
-Esto levantarÃ¡ automÃ¡ticamente en orden:
-1. `helpflow-db`: PostgreSQL 16 en el puerto `5432`.
-2. `technician-dispatch-service`: Microservicio en el puerto `8081`.
-3. `support-ticket-service`: Microservicio central en el puerto `8080`.
+---
 
-Para detener los servicios:
+## Métricas de Negocio y Observabilidad
+
+El microservicio central expone métricas de dominio mediante Micrometer y Prometheus:
+
+* **`helpflow.tickets.created`:** Contador de tickets creados por categoría y prioridad.
+* **`helpflow.tickets.overdue`:** Medidor en tiempo real (Gauge) de tickets con fecha límite de SLA vencida.
+* **`helpflow.tickets.first_response_time`:** Temporizador (Timer) del tiempo transcurrido hasta la primera respuesta técnica.
+* **`helpflow.tickets.resolution_time`:** Temporizador (Timer) del tiempo total hasta la resolución del ticket.
+
+Consulta de métricas:
+```bash
+# Formato JSON con detalles
+curl http://localhost:8080/actuator/metrics/helpflow.tickets.overdue
+
+# Scraping para Prometheus
+curl http://localhost:8080/actuator/prometheus
+```
+
+---
+
+## Ejecución de Pruebas Unitarias y de Integración
+
+Si deseas compilar y ejecutar las pruebas de software de manera local:
+
+```powershell
+# Pruebas de support-ticket-service:
+cd support-ticket-service
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
+.\mvnw.cmd test
+
+# Pruebas de technician-dispatch-service:
+cd ..\technician-dispatch-service
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
+.\mvnw.cmd test
+```
+
+---
+
+## Detener y Limpiar el Entorno
+
+Para detener los contenedores preservando los datos:
 ```bash
 docker compose down
 ```
 
----
-
-### OpciÃ³n B: EjecuciÃ³n Local en Desarrollo
-
-1. **Asegurar PostgreSQL local** en el puerto `5432` con base de datos `helpflow_tickets` (o usar la BD levantada por docker).
-2. **Iniciar `technician-dispatch-service`:**
-   ```powershell
-   cd technician-dispatch-service
-   $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
-   .\mvnw.cmd spring-boot:run
-   ```
-3. **Iniciar `support-ticket-service`:**
-   ```powershell
-   cd support-ticket-service
-   $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
-   .\mvnw.cmd spring-boot:run
-   ```
-
----
-
-## 6. DocumentaciÃ³n Swagger y ColecciÃ³n Postman
-
-* **Swagger UI Interactivo:**
-  Accede desde tu navegador a:
-  [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
-  *(Permite ingresar el token JWT en el botÃ³n **Authorize** para probar todos los endpoints protegidos).*
-
-* **ColecciÃ³n Postman:**
-  Importa el archivo [`HelpFlow.postman_collection.json`](file:///C:/Users/juang/OneDrive/Documentos/riwi-proyects/HelpFlow/HelpFlow.postman_collection.json) ubicado en la raÃ­z del proyecto. Viene preconfigurado con tests automÃ¡ticos para capturar y propagar los tokens JWT en cada peticiÃ³n.
-
----
-
-## 7. EjecuciÃ³n de Pruebas Automatizadas
-
-Para validar toda la suite de pruebas unitarias de casos de uso y de controladores:
-
-```powershell
-# En support-ticket-service:
-cd support-ticket-service
-$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
-.\mvnw.cmd test -Dtest="*ServiceTest"
-
-# En technician-dispatch-service:
-cd ..\technician-dispatch-service
-.\mvnw.cmd test
+Para reiniciar con base de datos limpia desde cero:
+```bash
+docker compose down -v
+docker compose up --build -d
 ```
