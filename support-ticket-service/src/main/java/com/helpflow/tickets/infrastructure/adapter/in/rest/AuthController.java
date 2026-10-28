@@ -4,16 +4,18 @@ import com.helpflow.tickets.application.port.input.RegisterUserCommand;
 import com.helpflow.tickets.application.port.input.RegisterUserUseCase;
 import com.helpflow.tickets.application.port.output.PasswordEncoderPort;
 import com.helpflow.tickets.application.port.output.UserRepositoryPort;
-import com.helpflow.tickets.domain.exception.DomainException;
+import com.helpflow.tickets.domain.model.Role;
 import com.helpflow.tickets.domain.model.User;
 import com.helpflow.tickets.infrastructure.adapter.in.rest.dto.AuthResponse;
 import com.helpflow.tickets.infrastructure.adapter.in.rest.dto.LoginRequest;
-import com.helpflow.tickets.infrastructure.adapter.in.rest.dto.RegisterRequest;
+import com.helpflow.tickets.infrastructure.adapter.in.rest.dto.PublicRegisterRequest;
 import com.helpflow.tickets.infrastructure.adapter.in.rest.dto.UserResponse;
 import com.helpflow.tickets.infrastructure.adapter.in.rest.security.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,7 +41,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody PublicRegisterRequest request) {
         RegisterUserCommand command = new RegisterUserCommand(
                 request.document(),
                 request.name(),
@@ -47,10 +49,10 @@ public class AuthController {
                 request.password(),
                 request.site(),
                 request.area(),
-                request.role(),
-                request.technicianCode(),
-                request.specialty(),
-                request.maxActiveTickets()
+                Role.ROLE_USUARIO,   // el registro público SIEMPRE crea usuarios normales
+                null,
+                null,
+                null
         );
 
         User user = registerUserUseCase.register(command);
@@ -71,14 +73,14 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new DomainException("Credenciales inválidas"));
+                .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
 
         if (!passwordEncoder.matches(request.password(), user.passwordHash())) {
-            throw new DomainException("Credenciales inválidas");
+            throw new BadCredentialsException("Credenciales inválidas");
         }
 
         if (!user.isActive()) {
-            throw new DomainException("El usuario se encuentra inactivo");
+            throw new DisabledException("El usuario se encuentra inactivo");
         }
 
         String token = jwtService.generateToken(user);

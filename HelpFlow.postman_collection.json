@@ -6,12 +6,30 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "dispatchUrl", "value": "http://localhost:8081" },
-    { "key": "adminToken", "value": "" },
-    { "key": "userToken", "value": "" },
-    { "key": "techToken", "value": "" },
-    { "key": "ticketId", "value": "1" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "dispatchUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "userToken",
+      "value": ""
+    },
+    {
+      "key": "techToken",
+      "value": ""
+    },
+    {
+      "key": "ticketId",
+      "value": "1"
+    }
   ],
   "item": [
     {
@@ -36,12 +54,26 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"admin@helpflow.com\",\n  \"password\": \"admin123\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
         },
         {
@@ -63,24 +95,52 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"tec01@helpflow.com\",\n  \"password\": \"admin123\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
         },
         {
           "name": "Registrar Usuario Solicitante",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"document\": \"1098765432\",\n  \"name\": \"Carlos Santana\",\n  \"email\": \"carlos.santana@helpflow.com\",\n  \"password\": \"password123\",\n  \"site\": \"Sede Norte\",\n  \"area\": \"Finanzas\",\n  \"role\": \"ROLE_USUARIO\"\n}"
+              "raw": "{\n  \"document\": \"1098765432\",\n  \"name\": \"Carlos Santana\",\n  \"email\": \"carlos.santana@helpflow.com\",\n  \"password\": \"password123\",\n  \"site\": \"Sede Norte\",\n  \"area\": \"Finanzas\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
           }
         },
         {
@@ -102,12 +162,86 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"carlos.santana@helpflow.com\",\n  \"password\": \"password123\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Tecnico o Admin (POST /admin/users - Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document\": \"1098765439\",\n  \"name\": \"Mariana Lopez\",\n  \"email\": \"mariana.lopez@helpflow.com\",\n  \"password\": \"password123\",\n  \"site\": \"Sede Central\",\n  \"area\": \"Sistemas\",\n  \"role\": \"ROLE_TECNICO\",\n  \"technicianCode\": \"TEC-099\",\n  \"specialty\": \"RED\",\n  \"maxActiveTickets\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Perfil de Usuario (PUT /users/{id})",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos Santana Actualizado\",\n  \"site\": \"Sede Norte\",\n  \"area\": \"Tesoreria\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "1"
+              ]
+            }
           }
         }
       ]
@@ -135,38 +269,94 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Falla en cableado de red de oficina\",\n  \"description\": \"El equipo no detecta conexión de red cableada en el puesto 14\",\n  \"category\": \"RED\",\n  \"priority\": \"ALTA\",\n  \"site\": \"Sede Central\",\n  \"affectedAsset\": \"Switch-Piso2-Sw01\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] }
+            "url": {
+              "raw": "{{baseUrl}}/tickets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets"
+              ]
+            }
           }
         },
         {
           "name": "Listar Tickets (Filtro por Rol)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
-            "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets"
+              ]
+            }
           }
         },
         {
           "name": "Obtener Ticket por ID",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
-            "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "{{ticketId}}"
+              ]
+            }
           }
         },
         {
           "name": "Consultar Historial del Ticket",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
-            "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}/history", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}", "history"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "{{ticketId}}",
+                "history"
+              ]
+            }
           }
         },
         {
@@ -174,14 +364,30 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{techToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{techToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"EN_PROGRESO\",\n  \"observation\": \"Iniciando revisión técnica en el switch de red\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}/status", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}", "status"] }
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "{{ticketId}}",
+                "status"
+              ]
+            }
           }
         },
         {
@@ -189,14 +395,30 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{techToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{techToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"RESUELTO\",\n  \"observation\": \"Se reemplazó el conector RJ45 dañado y se verificó conectividad a 1 Gbps\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}/status", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}", "status"] }
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "{{ticketId}}",
+                "status"
+              ]
+            }
           }
         },
         {
@@ -204,14 +426,30 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"CANCELADO\",\n  \"observation\": \"Ya no requiero el soporte, problema solventado externamente\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}/status", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}", "status"] }
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "{{ticketId}}",
+                "status"
+              ]
+            }
           }
         },
         {
@@ -219,14 +457,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"technicianId\": 10,\n  \"observation\": \"Reasignación administrativa por rotación de turno\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}/assign", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}", "assign"] }
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "{{ticketId}}",
+                "assign"
+              ]
+            }
           }
         }
       ]
@@ -238,8 +492,22 @@
           "name": "Consultar Políticas SLA Actuales",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
-            "url": { "raw": "{{baseUrl}}/admin/sla", "host": ["{{baseUrl}}"], "path": ["admin", "sla"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/sla",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "sla"
+              ]
+            }
           }
         },
         {
@@ -247,14 +515,29 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"hours\": {\n    \"CRITICA\": 3,\n    \"ALTA\": 6,\n    \"MEDIA\": 18,\n    \"BAJA\": 48\n  }\n}"
             },
-            "url": { "raw": "{{baseUrl}}/admin/sla", "host": ["{{baseUrl}}"], "path": ["admin", "sla"] }
+            "url": {
+              "raw": "{{baseUrl}}/admin/sla",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "sla"
+              ]
+            }
           }
         }
       ]
@@ -266,42 +549,99 @@
           "name": "Health Check",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] }
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
           }
         },
         {
           "name": "Listar Métricas",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/metrics", "host": ["{{baseUrl}}"], "path": ["actuator", "metrics"] }
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics"
+              ]
+            }
           }
         },
         {
           "name": "Métrica: Tickets Creados",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/metrics/helpflow.tickets.created", "host": ["{{baseUrl}}"], "path": ["actuator", "metrics", "helpflow.tickets.created"] }
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics/helpflow.tickets.created",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics",
+                "helpflow.tickets.created"
+              ]
+            }
           }
         },
         {
           "name": "Métrica: Tickets Overdue (SLA Vencido)",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/metrics/helpflow.tickets.overdue", "host": ["{{baseUrl}}"], "path": ["actuator", "metrics", "helpflow.tickets.overdue"] }
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics/helpflow.tickets.overdue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics",
+                "helpflow.tickets.overdue"
+              ]
+            }
           }
         },
         {
           "name": "Métrica: Tiempo Primera Respuesta",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/metrics/helpflow.tickets.first_response_time", "host": ["{{baseUrl}}"], "path": ["actuator", "metrics", "helpflow.tickets.first_response_time"] }
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics/helpflow.tickets.first_response_time",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics",
+                "helpflow.tickets.first_response_time"
+              ]
+            }
           }
         },
         {
           "name": "Prometheus Metrics",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/prometheus", "host": ["{{baseUrl}}"], "path": ["actuator", "prometheus"] }
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            }
           }
         }
       ]
@@ -313,12 +653,25 @@
           "name": "POST /technician-dispatch",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ticketId\": 125,\n  \"categoria\": \"RED\",\n  \"prioridad\": \"ALTA\"\n}"
             },
-            "url": { "raw": "{{dispatchUrl}}/technician-dispatch", "host": ["{{dispatchUrl}}"], "path": ["technician-dispatch"] }
+            "url": {
+              "raw": "{{dispatchUrl}}/technician-dispatch",
+              "host": [
+                "{{dispatchUrl}}"
+              ],
+              "path": [
+                "technician-dispatch"
+              ]
+            }
           }
         }
       ]

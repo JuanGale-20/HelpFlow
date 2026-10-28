@@ -1,10 +1,13 @@
 ﻿# HelpFlow - Sistema Integral de Gestion de Soporte TI
 
+[![Repositorio GitHub](https://img.shields.io/badge/GitHub-HelpFlow-181717.svg?logo=github)](https://github.com/JuanGale-20/HelpFlow)
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
 [![Spring Boot 4.1.2](https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Arquitectura Hexagonal](https://img.shields.io/badge/Arquitectura-Hexagonal%20(Ports%20%26%20Adapters)-blue.svg)]()
 [![Base de Datos](https://img.shields.io/badge/Database-PostgreSQL%2016-blue.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose%20Ready-2496ED.svg)](https://www.docker.com/)
+
+**Repositorio publico:** [https://github.com/JuanGale-20/HelpFlow.git](https://github.com/JuanGale-20/HelpFlow.git)
 
 HelpFlow es una solucion empresarial para el registro, priorizacion, asignacion tecnica inteligente, control de acuerdos de nivel de servicio (SLA) y resolucion de incidentes tecnologicos en organizaciones multi-sede.
 
@@ -21,7 +24,7 @@ El diseno del servicio central asegura un desacoplamiento total: el nucleo de do
 ```mermaid
 flowchart TD
     subgraph AdaptadoresEntrada["Adaptadores de Entrada (Inbound Adapters)"]
-        REST["REST Controllers<br/>(AuthController, TicketController, AdminSlaController)"]
+        REST["REST Controllers<br/>(AuthController, AdminUserController, UserController, TicketController, AdminSlaController)"]
         CRON["Scheduler de Escalamiento<br/>(@Scheduled TicketEscalationScheduler)"]
     end
 
@@ -31,7 +34,7 @@ flowchart TD
         ManageUC["ManageTicketUseCase"]
         EscalateUC["EscalateTicketsUseCase"]
         QueryUC["QueryTicketsUseCase"]
-        AuthUC["RegisterUserUseCase / ManageSlaUseCase"]
+        AuthUC["RegisterUserUseCase / UpdateUserUseCase / ManageSlaUseCase"]
     end
 
     subgraph DominioPuro["Nucleo de Dominio (Domain Core - Puro Java, sin Spring)"]
@@ -75,27 +78,29 @@ flowchart TD
 
 ## 2. Catalogo de Endpoints
 
-### 2.1. Autenticacion y Usuarios (`/auth`)
+### 2.1. Autenticacion y Usuarios
 | Metodo | Ruta | Descripcion | Acceso |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/auth/register` | Registro de nuevos usuarios y tecnicos | Publico / Admin |
+| `POST` | `/auth/register` | Registro de nuevos usuarios (crea siempre `ROLE_USUARIO`) | Publico |
 | `POST` | `/auth/login` | Autenticacion que genera token Bearer JWT | Publico |
+| `POST` | `/admin/users` | Creacion administrativa de tecnicos (`ROLE_TECNICO`) y administradores | Solo Admin |
+| `PUT` | `/users/{id}` | Actualizacion de datos de perfil (nombre, sede, area) | Propio Usuario o Admin |
 
 ### 2.2. Gestion de Tickets (`/tickets`)
 | Metodo | Ruta | Descripcion | Acceso |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/tickets` | Creacion y auto-asignacion inmediata de ticket | Usuario / Admin |
-| `GET` | `/tickets` | Listado paginado segun rol del usuario | Autenticado |
+| `GET` | `/tickets` | Listado de tickets segun rol del usuario | Autenticado |
 | `GET` | `/tickets/{id}` | Consulta detallada del ticket con validacion de autorizacion | Autenticado |
 | `GET` | `/tickets/{id}/history` | Historial cronologico de asignaciones y estados | Autenticado |
-| `PATCH` | `/tickets/{id}/status` | Transicion de estado (`status`, `observation`) | Tecnico / Admin / Creador |
+| `PATCH` | `/tickets/{id}/status` | Transicion de estado (`status`, `observation`) con validacion cruzada | Tecnico / Admin / Creador |
 | `POST` | `/tickets/{id}/assign` | Reasignacion manual de tecnico | Solo Admin |
 
 ### 2.3. Politicas de SLA (`/admin/sla`)
 | Metodo | Ruta | Descripcion | Acceso |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/admin/sla` | Lista de horas limite configuradas por prioridad | Solo Admin |
-| `PUT` | `/admin/sla` | Actualizacion del tiempo maximo de resolucion SLA | Solo Admin |
+| `PUT` | `/admin/sla` | Actualizacion del tiempo maximo de resolucion SLA con validacion jerarquica | Solo Admin |
 
 ### 2.4. Microservicio de Despacho Tecnico (Puerto 8081)
 | Metodo | Ruta | Descripcion | Acceso |
@@ -108,6 +113,8 @@ flowchart TD
 | `GET` | `/actuator/health` | Estado de salud (db, liveness, readiness) |
 | `GET` | `/actuator/metrics` | Catalogo de metricas registradas |
 | `GET` | `/actuator/metrics/helpflow.tickets.overdue` | Medicion en tiempo real de tickets vencidos |
+| `GET` | `/actuator/metrics/helpflow.security.auth_failures` | Contador de fallos de autenticacion (401) |
+| `GET` | `/actuator/metrics/helpflow.security.access_denied` | Contador de accesos denegados (403) |
 | `GET` | `/actuator/prometheus` | Exportador para ingestion en Prometheus |
 
 ---
@@ -124,7 +131,8 @@ flowchart TD
 | Resolver ticket | No | Solo los asignados | Si |
 | Reasignar tecnico | No | No | Si |
 | Gestionar politicas SLA | No | No | Si |
-| Registrar usuarios/tecnicos | No | No | Si |
+| Registrar usuarios/tecnicos | No | No | Si (via `/admin/users`) |
+| Modificar su perfil | Si (via `/users/{id}`) | Si (via `/users/{id}`) | Si |
 
 ---
 
@@ -187,7 +195,7 @@ stateDiagram-v2
 ```
 
 **Reglas de Transicion:**
-* Toda cancelacion o resolucion exige obligatoriamente un texto de observacion descriptivo.
+* Toda cancelacion o resolucion exige obligatoriamente un texto de observacion descriptivo (validado a traves del validador de Bean Validation `@ValidStatusChange`).
 * Pasar a `EN_PROGRESO` estampa automaticamente la marca de tiempo `firstResponseAt`.
 * Pasar a `RESUELTO` estampa la marca de tiempo `resolvedAt` para computar metricas de tiempo de resolucion.
 
@@ -201,9 +209,9 @@ stateDiagram-v2
 * `MEDIA`: 24 horas.
 * `BAJA`: 72 horas.
 
-**Reglas del Scheduler de Escalamiento:**
-* Un proceso periodico en segundo plano (`TicketEscalationScheduler`) evalua los tickets activos cada 60 segundos.
-* Si la hora actual supera el `slaDeadline`, el ticket incrementa su contador `escalationCount`, se extiende su plazo en +24 horas y se genera un registro en `assignment_history` para auditoria.
+**Reglas del Scheduler de Escalamiento (`TicketEscalationScheduler`):**
+* Un proceso periodico en segundo plano evalua los tickets activos cada 60 segundos.
+* Si la hora actual supera el `slaDeadline`, el ticket incrementa su contador `escalationCount`, se escala su prioridad al siguiente nivel mas urgente (`BAJA` -> `MEDIA` -> `ALTA` -> `CRITICA`), se registra una entrada en `assignment_history` y se marca para no volver a escalar si ya llego al tope.
 
 ---
 
@@ -211,7 +219,16 @@ stateDiagram-v2
 
 ### 4.1. Despliegue con Docker Compose (Recomendado)
 
-En la raiz del proyecto:
+**Paso 1: Configurar variables de entorno**
+```powershell
+# En Windows PowerShell:
+copy .env.example .env
+
+# En Linux o MacOS:
+cp .env.example .env
+```
+
+**Paso 2: Compilar y levantar contenedores**
 ```bash
 docker compose up --build -d
 ```
@@ -226,7 +243,7 @@ Para detener el entorno conservando los datos:
 docker compose down
 ```
 
-Para reiniciar con la base de datos limpia:
+Para reiniciar con la base de datos limpia desde cero:
 ```bash
 docker compose down -v
 docker compose up --build -d
@@ -277,29 +294,34 @@ Todos los usuarios cargados por la migracion Flyway `V3__datos_iniciales.sql` ti
 ## 6. Evidencias de Pruebas Automatizadas
 
 ### 6.1. Suite de Pruebas Unitarias e Integracion (`support-ticket-service`)
-Ejecucion completa de casos de uso (Create, Assign, Manage, Escalate, Security, Spring Context):
+Ejecucion completa con base de datos real bajo Testcontainers (`postgres:16-alpine`), validaciones cruzadas, seguridad y flujo E2E:
 
 ```text
 [INFO] -------------------------------------------------------
 [INFO]  T E S T S
 [INFO] -------------------------------------------------------
 [INFO] Running com.helpflow.tickets.application.usecase.CreateTicketServiceTest
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.832 s
 [INFO] Running com.helpflow.tickets.application.usecase.AssignTicketServiceTest
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.160 s
 [INFO] Running com.helpflow.tickets.application.usecase.ManageTicketServiceTest
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.081 s
 [INFO] Running com.helpflow.tickets.application.usecase.EscalateTicketsServiceTest
-[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.095 s
 [INFO] Running com.helpflow.tickets.infrastructure.adapter.out.security.BCryptPasswordEncoderAdapterTest
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s
+[INFO] Running com.helpflow.tickets.integration.TicketFlowIntegrationTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 24.31 s
 [INFO] Running com.helpflow.tickets.SupportTicketServiceApplicationTests
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.847 s
 [INFO] 
 [INFO] Results:
-[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] Tests run: 28, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
+[INFO] Total time:  45.393 s
 [INFO] ------------------------------------------------------------------------
 ```
 
@@ -312,23 +334,80 @@ Ejecucion completa de casos de uso (Create, Assign, Manage, Escalate, Security, 
 
 ---
 
-## 7. Evidencia de Metricas, Tickets Vencidos y Logs con TraceId
+## 7. Evidencia de Metricas, Tickets Vencidos, Seguridad y Logs
 
-### 7.1. Registro de Logs con Patrón MDC `[traceId=...]`
+### 7.1. Registro de Logs con Patron MDC `[traceId=...]`
 Cada peticion entrante genera un identificador unico de trazabilidad propagado en los registros del servidor:
 
 ```text
 2026-10-27T22:07:44.427Z INFO  [traceId=] 1 --- [support-ticket-service] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet : Completed initialization in 2 ms
-2026-10-27T22:15:33.394Z WARN  [traceId=e3bc8d3a-779a-4400-bdc7-969c9ff576f5] 1 --- [support-ticket-service] [nio-8080-exec-9] o.s.s.c.bcrypt.BCryptPasswordEncoder : Encoded password does not look like BCrypt
-2026-10-27T22:16:12.520Z INFO  [traceId=a812df5e-149b-43fe-a39c-2ef42194ad92] 1 --- [support-ticket-service] [nio-8080-exec-2] c.h.t.a.u.CreateTicketService : Ticket 1 creado con exito bajo SLA deadline 2026-10-28T06:16:12.519Z
+2026-10-28T00:42:22.735Z WARN  [traceId=3eac2d56-f525-4ece-944e-c81b65e0fb98] 1 --- [support-ticket-service] [nio-8080-exec-3] c.h.t.i.a.i.r.e.GlobalExceptionHandler : Fallo de autenticacion: Credenciales invalidas
+2026-10-28T00:42:50.618Z WARN  [traceId=e302b19f-7571-404b-97a9-702715b35005] 1 --- [support-ticket-service] [nio-8080-exec-6] c.h.t.i.a.i.r.e.GlobalExceptionHandler : Acceso denegado: Access Denied
 ```
 
-### 7.2. Metrica de Tickets Vencidos en Tiempo Real (`helpflow.tickets.overdue`)
-Consulta directa al endpoint Actuator:
-```bash
-curl http://localhost:8080/actuator/metrics/helpflow.tickets.overdue
+### 7.2. Evidencia de Errores de Seguridad en RFC 7807 (401 y 403)
+**Error 401 Unauthorized (`/auth/login` con clave incorrecta):**
+```json
+{
+  "detail": "Credenciales invalidas",
+  "instance": "/auth/login",
+  "status": 401,
+  "title": "No autorizado",
+  "type": "https://helpflow.com/errors/unauthorized",
+  "timestamp": "2026-10-28T00:42:22.735000823Z",
+  "traceId": "3eac2d56-f525-4ece-944e-c81b65e0fb98"
+}
 ```
-Respuesta obtenida:
+
+**Error 403 Forbidden (`POST /admin/users` intentado por usuario normal):**
+```json
+{
+  "detail": "Access Denied",
+  "instance": "/admin/users",
+  "status": 403,
+  "title": "Acceso denegado",
+  "type": "https://helpflow.com/errors/access-denied",
+  "timestamp": "2026-10-28T00:42:50.618516047Z",
+  "traceId": "e302b19f-7571-404b-97a9-702715b35005"
+}
+```
+
+### 7.3. Metricas de Seguridad en Actuator
+```bash
+# Contador de intentos fallidos de autenticacion (401)
+curl http://localhost:8080/actuator/metrics/helpflow.security.auth_failures
+```
+```json
+{
+  "name": "helpflow.security.auth_failures",
+  "description": "Numero de fallos de autenticacion",
+  "measurements": [
+    {
+      "statistic": "COUNT",
+      "value": 2.0
+    }
+  ]
+}
+```
+
+```bash
+# Contador de accesos denegados por permisos (403)
+curl http://localhost:8080/actuator/metrics/helpflow.security.access_denied
+```
+```json
+{
+  "name": "helpflow.security.access_denied",
+  "description": "Numero de accesos denegados a tickets o recursos",
+  "measurements": [
+    {
+      "statistic": "COUNT",
+      "value": 1.0
+    }
+  ]
+}
+```
+
+### 7.4. Metrica de Tickets Vencidos en Tiempo Real (`helpflow.tickets.overdue`)
 ```json
 {
   "name": "helpflow.tickets.overdue",
@@ -343,45 +422,84 @@ Respuesta obtenida:
 }
 ```
 
-### 7.3. Metricas Ingeribles por Prometheus (`/actuator/prometheus`)
+### 7.5. Metricas Ingeribles por Prometheus (`/actuator/prometheus`)
 ```text
 # HELP helpflow_tickets_overdue Numero de tickets con SLA vencido en tiempo real
 # TYPE helpflow_tickets_overdue gauge
 helpflow_tickets_overdue 0.0
-# HELP helpflow_tickets_created_total Contador de tickets creados en HelpFlow
-# TYPE helpflow_tickets_created_total counter
-helpflow_tickets_created_total{category="RED",priority="ALTA"} 1.0
-helpflow_tickets_created_total{category="RED",priority="CRITICA"} 1.0
-```
-
-### 7.4. Estado de Salud Verificado (`/actuator/health`)
-```json
-{
-  "status": "UP",
-  "components": {
-    "db": {
-      "status": "UP",
-      "details": {
-        "database": "PostgreSQL",
-        "validationQuery": "isValid()"
-      }
-    },
-    "diskSpace": {
-      "status": "UP"
-    },
-    "livenessState": {
-      "status": "UP"
-    },
-    "readinessState": {
-      "status": "UP"
-    }
-  }
-}
+# HELP helpflow_security_auth_failures_total Numero de fallos de autenticacion
+# TYPE helpflow_security_auth_failures_total counter
+helpflow_security_auth_failures_total 2.0
+# HELP helpflow_security_access_denied_total Numero de accesos denegados a tickets o recursos
+# TYPE helpflow_security_access_denied_total counter
+helpflow_security_access_denied_total 1.0
 ```
 
 ---
 
-## 8. Coleccion Postman y Swagger UI
+## 8. Capturas de Pruebas en Postman
 
-* **Swagger UI:** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) (permite ingresar el token en **Authorize** para probar los endpoints).
-* **Coleccion Postman:** Se incluye el archivo [`HelpFlow.postman_collection.json`](file:///C:/Users/juang/OneDrive/Documentos/riwi-proyects/HelpFlow/HelpFlow.postman_collection.json) con todas las peticiones organizadas por rol y scripts de extraccion automatica de token JWT.
+A continuacion se presentan las evidencias graficas de las pruebas realizadas sobre los endpoints del sistema HelpFlow:
+
+### 8.1. Autenticacion y Gestion de Usuarios
+![Login Admin](docs/screenshots/postman_test_01.png)
+*Figura 1: Autenticacion del Administrador (`POST /auth/login`), retorno de token JWT y almacenamiento automatico.*
+
+![Login Tecnico](docs/screenshots/postman_test_02.png)
+*Figura 2: Autenticacion de Tecnico (`POST /auth/login`) con rol `ROLE_TECNICO`.*
+
+![Registro de Usuario](docs/screenshots/postman_test_03.png)
+*Figura 3: Registro de usuario solicitante (`POST /auth/register`).*
+
+![Login Usuario Creado](docs/screenshots/postman_test_04.png)
+*Figura 4: Inicio de sesion del usuario recien registrado.*
+
+---
+
+### 8.2. Gestion y Ciclo de Vida de Tickets
+![Crear Ticket](docs/screenshots/postman_test_05.png)
+*Figura 5: Creacion de ticket (`POST /tickets`) con asignacion tecnica automatica inmediata en estado `ASIGNADO`.*
+
+![Listar Tickets](docs/screenshots/postman_test_06.png)
+*Figura 6: Consulta de tickets (`GET /tickets`) filtrada por autorizacion segun el rol del usuario autenticado.*
+
+![Obtener Ticket por ID](docs/screenshots/postman_test_07.png)
+*Figura 7: Detalle completo del ticket (`GET /tickets/{id}`).*
+
+![Historial del Ticket](docs/screenshots/postman_test_08.png)
+*Figura 8: Auditoria cronologica completa del ticket (`GET /tickets/{id}/history`).*
+
+![Estado En Progreso](docs/screenshots/postman_test_09.png)
+*Figura 9: Transicion de estado a `EN_PROGRESO` (`PATCH /tickets/{id}/status`), registrando `firstResponseAt`.*
+
+![Estado Resuelto](docs/screenshots/postman_test_10.png)
+*Figura 10: Resolucion del ticket (`PATCH /tickets/{id}/status`), validando observacion obligatoria y `resolvedAt`.*
+
+![Cancelar Ticket](docs/screenshots/postman_test_11.png)
+*Figura 11: Cancelacion de ticket por parte del usuario solicitante con motivo.*
+
+![Reasignar Ticket](docs/screenshots/postman_test_12.png)
+*Figura 12: Reasignacion manual de tecnico por parte del administrador (`POST /tickets/{id}/assign`).*
+
+---
+
+### 8.3. Configuracion de SLA, Despacho y Observabilidad
+![Consultar SLA](docs/screenshots/postman_test_13.png)
+*Figura 13: Consulta de politicas activas de SLA (`GET /admin/sla`).*
+
+![Modificar SLA](docs/screenshots/postman_test_14.png)
+*Figura 14: Actualizacion administrativa de tiempos de SLA (`PUT /admin/sla`).*
+
+![Actuator Health](docs/screenshots/postman_test_15.png)
+*Figura 15: Verificacion de salud de servicios y conexion a base de datos (`GET /actuator/health`).*
+
+![Despacho Tecnico](docs/screenshots/postman_test_16.png)
+*Figura 16: Peticion directa al microservicio externo determinista de asignacion (`POST /technician-dispatch`).*
+
+---
+
+## 9. Recursos Adicionales
+
+* **Coleccion Postman:** Se incluye el archivo [HelpFlow.postman_collection.json](HelpFlow.postman_collection.json) en la raiz del proyecto con el flujo completo de pruebas y variables preconfiguradas.
+* **Swagger UI:** Accesible en [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) (boton **Authorize** para ingresar el token JWT Bearer).
+* **Documento de Evidencias:** Archivo original `Pruebas Postman Proyecto HelpFlow.docx`.

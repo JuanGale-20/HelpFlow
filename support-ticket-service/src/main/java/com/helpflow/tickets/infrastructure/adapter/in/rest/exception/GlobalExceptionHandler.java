@@ -14,15 +14,20 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -38,23 +43,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         log.warn("Recurso no encontrado: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        problem.setTitle("Recurso no encontrado");
-        problem.setType(URI.create("https://helpflow.com/errors/not-found"));
-        enrichProblemDetail(problem, request);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+        return build(HttpStatus.NOT_FOUND, "Recurso no encontrado", "not-found", ex.getMessage(), request);
     }
 
     @ExceptionHandler({TicketAccessDeniedException.class, AccessDeniedException.class})
     public ResponseEntity<ProblemDetail> handleAccessDenied(Exception ex, HttpServletRequest request) {
         log.warn("Acceso denegado: {}", ex.getMessage());
         metrics.recordAccessDenied();
-
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
-        problem.setTitle("Acceso denegado");
-        problem.setType(URI.create("https://helpflow.com/errors/access-denied"));
-        enrichProblemDetail(problem, request);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+        return build(HttpStatus.FORBIDDEN, "Acceso denegado", "access-denied", ex.getMessage(), request);
     }
 
     @ExceptionHandler({
@@ -64,11 +60,7 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ProblemDetail> handleDomainException(Exception ex, HttpServletRequest request) {
         log.warn("Violación de regla de negocio: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
-        problem.setTitle("Regla de negocio no cumplida");
-        problem.setType(URI.create("https://helpflow.com/errors/business-rule-violation"));
-        enrichProblemDetail(problem, request);
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(problem);
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, "Regla de negocio no cumplida", "business-rule-violation", ex.getMessage(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -92,23 +84,65 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
         log.warn("Fallo de autenticación: {}", ex.getMessage());
         metrics.recordAuthFailure();
+        return build(HttpStatus.UNAUTHORIZED, "No autorizado", "unauthorized",
+                ex.getMessage() != null && !ex.getMessage().isBlank() ? ex.getMessage() : "Credenciales inválidas o token expirado",
+                request);
+    }
 
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Credenciales inválidas o token expirado");
-        problem.setTitle("No autorizado");
-        problem.setType(URI.create("https://helpflow.com/errors/unauthorized"));
-        enrichProblemDetail(problem, request);
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ProblemDetail> handleUnreadable(HttpMessageNotReadableException ex,
+                                                          HttpServletRequest request) {
+        log.warn("Cuerpo de la solicitud ilegible: {}", ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, "Solicitud mal formada", "malformed-request",
+                "El cuerpo de la solicitud es inválido o contiene valores no permitidos (por ejemplo, un enum desconocido)",
+                request);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ProblemDetail> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
+                                                            HttpServletRequest request) {
+        log.warn("Parámetro con tipo inválido: {}", ex.getName());
+        return build(HttpStatus.BAD_REQUEST, "Parámetro inválido", "invalid-parameter",
+                "El parámetro '" + ex.getName() + "' tiene un valor inválido", request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetail> handleDataIntegrity(DataIntegrityViolationException ex,
+                                                             HttpServletRequest request) {
+        String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        log.warn("Violación de integridad en base de datos: {}", cause);
+        return build(HttpStatus.CONFLICT, "Conflicto de datos", "data-conflict",
+                "La operación viola una restricción de datos (valor duplicado o referencia inexistente)", request);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNoResource(NoResourceFoundException ex,
+                                                          HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "Ruta no encontrada", "not-found",
+                "No existe el recurso solicitado", request);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ProblemDetail> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
+                                                                HttpServletRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "Método no permitido", "method-not-allowed",
+                ex.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGenericException(Exception ex, HttpServletRequest request) {
         log.error("Error no controlado: {}", ex.getMessage(), ex);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.INTERNAL_SERVER_ERROR, "Ha ocurrido un error interno inesperado en el servidor");
-        problem.setTitle("Error interno del servidor");
-        problem.setType(URI.create("https://helpflow.com/errors/internal-server-error"));
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor", "internal-server-error",
+                "Ha ocurrido un error interno inesperado en el servidor", request);
+    }
+
+    private ResponseEntity<ProblemDetail> build(HttpStatus status, String title, String typeSlug,
+                                                String detail, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setTitle(title);
+        problem.setType(URI.create("https://helpflow.com/errors/" + typeSlug));
         enrichProblemDetail(problem, request);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+        return ResponseEntity.status(status).body(problem);
     }
 
     private void enrichProblemDetail(ProblemDetail problem, HttpServletRequest request) {

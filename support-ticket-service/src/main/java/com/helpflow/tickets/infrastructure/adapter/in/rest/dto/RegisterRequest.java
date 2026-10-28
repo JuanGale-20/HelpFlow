@@ -2,11 +2,13 @@ package com.helpflow.tickets.infrastructure.adapter.in.rest.dto;
 
 import com.helpflow.tickets.domain.model.Role;
 import com.helpflow.tickets.domain.model.TicketCategory;
+import com.helpflow.tickets.infrastructure.adapter.in.rest.validation.ValidTechnicianData;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+@ValidTechnicianData
 public record RegisterRequest(
         @NotBlank(message = "El documento es obligatorio")
         String document,
